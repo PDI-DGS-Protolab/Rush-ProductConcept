@@ -8,12 +8,11 @@ function request(data, callback) {
 
   // An object of options to indicate where to post to
   var post_options = {
-      host: config.rushHost || '192.168.1.84',
-      port: config.rushUnsecPort || 5001,
+      host: config.endpoint,
+      port: config.endpointPort || 80,
       method: 'POST',
       headers: {
-          'Content-Type': 'application/json',
-          'X-relayer-host' : config.endpoint + config.endpointPort
+          'Content-Type': 'application/json'
       }
   };
 
