@@ -14,9 +14,13 @@ var getProcMem = function (pid) {
   return elems[elems.length - 2];
 };
 
-setInterval(function() {
+/*setInterval(function() {
   'use strict';
   mem = getProcMem(pid);
   console.log('Memoria: ' + mem);
   fs.appendFileSync('mem_data.csv', mem + '\n')
-}, 1000);
+}, 1000);*/
+
+exports.getProcMem = getProcMem;
+
+

@@ -13,7 +13,7 @@ function request(data, callback) {
       method: 'POST',
       headers: {
           'Content-Type': 'application/json',
-          'X-relayer-host' : config.endpoint + config.endpointPort
+          'X-relayer-host' : config.endpoint + ':' +  config.endpointPort
       }
   };
 
@@ -39,29 +39,39 @@ function request(data, callback) {
 };
 
 var currentImage = 0;
-var availableImages = config.imageArray;
+var availableImages = [];
 
 var numberSent = 0;
 var numberReceived = 0;
 
-var sendInterval = setInterval(
-  function(){
+fs.readdir(__dirname + '/img', function(err, files){
+    availableImages = files;
+    startTest();
+});
 
-    numberSent++;
-    var thisImage = availableImages[currentImage];
-    currentImage = (currentImage + 1) % availableImages.length;
-    var toB64 = convert.encode(__dirname + thisImage);
+function startTest(){
+  var sendInterval = setInterval(
+    function(){
 
-    console.log("Succesfuly converted: " + thisImage);
+      numberSent++;
+      var thisImage = availableImages[currentImage];
+      currentImage = (currentImage + 1) % availableImages.length;
+      var toB64 = convert.encode(__dirname + '/img/' + thisImage);
 
-    request(toB64, function(){
-      numberReceived++;
-      var performance = 100 / (numberSent - numberReceived + 1);
-      console.log("Performance: "  + performance + "%");
-    });
+      //console.log("Succesfuly converted: " + thisImage);
 
-  },
-  config.captureInterval);
+      request(toB64, function(){
+        numberReceived++;
+        var performance = 100 / (numberSent - numberReceived + 1);
+        console.log("Performance: "  + performance + "%");
+      });
+
+      console.log(numberSent + " - " + numberReceived);
+
+    },
+    config.captureInterval);
+};
+
 
 
 
