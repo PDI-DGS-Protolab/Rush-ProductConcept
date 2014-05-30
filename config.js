@@ -11,4 +11,4 @@ exports.imageArray = [
   '/img/img1.jpg', '/img/img2.jpg', '/img/img3.jpg'
 ];
 
-exports.captureInterval = 500;
+exports.captureInterval = 1000;

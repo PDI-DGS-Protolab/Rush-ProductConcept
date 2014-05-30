@@ -6,10 +6,8 @@ var mem, startTimeU, startTimeS,
       endTimeU, endTimeS, cpuUsage, cpuSys, cpuUser;
 
 setInterval(function () {
-  'use strict';
-
-  startTimeU = getUserUsage(pid);
-  startTimeS = getSysUsage();
+  startTimeU = utils.getUserUsage(pid);
+  startTimeS = utils.getSysUsage();
 
   setTimeout(function () {
     mem = utils.getProcMem(pid);
@@ -25,3 +23,4 @@ setInterval(function () {
     fs.appendFileSync('monitor_data.csv', cpuUsage + ', ' + mem + '\n');
   }, 1000);
 }, 10000);
+
