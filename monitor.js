@@ -1,44 +1,27 @@
 var fs = require('fs');
+var utils = require('./utils.js');
 
 
 var pid = process.argv[2];
 var mem, startTimeU, startTimeS,
       endTimeU, endTimeS, cpuUsage, cpuSys, cpuUser;
 
-var getUserUsage = function (pid) {
-  var data = fs.readFileSync('/proc/' + pid + '/stat');
+setInterval(function () {
+  startTimeU = utils.getUserUsage(pid);
+  startTimeS = utils.getSysUsage();
 
-  var elems = data.toString().split(' ');
-  var utime = parseInt(elems[13]);
-  var stime = parseInt(elems[14]);
+  setTimeout(function () {
+    mem = utils.getProcMem(pid);
+    endTimeU = utils.getUserUsage(pid);
+    endTimeS = utils.getSysUsage();
 
-  return utime + stime;
-}
+    cpuSys = endTimeS - startTimeS;
+    cpuUser = endTimeU - startTimeU;
 
-var getSysUsage = function () {
-  var data = fs.readFileSync('/proc/stat');
+    cpuUsage = 100 * (cpuUser / cpuSys);
+    console.log('CPU: ' + cpuUsage);
+    console.log('Memoria: ' + mem);
+    fs.appendFileSync('monitor_data.csv', cpuUsage + ', ' + mem + '\n');
+  }, 1000);
+}, 10000);
 
-  var elems = data.toString().split(' ');
-
-  return parseInt(elems[2]) + parseInt(elems[3]) + parseInt(elems[4]) + parseInt(elems[5]);
-};
-
-var getProcMem = function (pid) {
-  'use strict';
-  var data = fs.readFileSync('/proc/' + pid + '/status');
-
-  var elems = data.toString().split('\n');
-  elems = elems[15].split('\t');
-  elems = elems[1].split(' ');
-
-  return elems[elems.length - 2];
-};
-
-/*setInterval(function() {
-  'use strict';
-  mem = getProcMem(pid);
-  console.log('Memoria: ' + mem);
-  fs.appendFileSync('mem_data.csv', mem + '\n')
-}, 1000);*/
-
-exports.getProcMem = getProcMem;
