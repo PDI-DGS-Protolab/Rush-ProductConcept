@@ -1,27 +1,38 @@
 var loadtest = require('loadtest');
 var utils = require('./utils');
 
-var size = 500;
-var body = "";
-var interval = 0.8;
+var body = '';
 
-for(var i=0; i<size * 1024; i++){
+var method = process.argv[3];
+var ip = process.argv[5];
+var port = process.argv[7];
+var payload = process.argv[9];
+var nReq = process.argv[11];
+var interval = process.argv[13];
+
+for(var i=0; i < payload * 1024; i++){
   body += 'a';
 }
 
+var url = method + '://' + ip + ':' + port;
+
 var options = {
-    url: 'http://ec2-54-199-108-216.ap-northeast-1.compute.amazonaws.com:80',
-    maxRequests: 5000,
+    url: url,
+    maxRequests: nReq,
     contentType : 'application/octet-stream',
     requestsPerSecond : 1 / interval,
     method : 'POST',
-    body : body
+    body : payload
 };
 
 var logInterval = setInterval(function(){
-  var mem = utils.getProcMem(process.pid);
-  console.log(mem);
-}, 4000);
+  //var mem = utils.getProcMem(process.pid);
+  var userTicks = utils.getUserUsage(process.pid);
+  /*startTimeS = utils.getSysUsage();*/
+
+  console.log('User ticks: ' + userTicks);
+  //console.log(mem);
+}, 3000);
 
 
 loadtest.loadTest(options, function(error, result)
@@ -34,7 +45,7 @@ loadtest.loadTest(options, function(error, result)
 
     setTimeout(function(){
       clearInterval(logInterval);
-    }, 60 * 1000);
+    }, 5 * 1000);
 });
 
 
