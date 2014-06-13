@@ -1,12 +1,17 @@
-var express = require('express');
-var fs = require('fs');
-var app = express();
+var http = require('http');
 
-app.post('/', function(req, res){
-    console.log('POST /');
-    res.end(200);
-});
+http.createServer(function(request,response){
 
-port = 9000;
-app.listen(port);
-console.log('Listening at http://localhost:' + port)
+ var data = "";
+ response.writeHead(200);
+
+ request.on('data',function(chunk){
+  data +=chunk;
+ });
+
+
+ request.on('end', function(){
+  response.end();
+ });
+
+}).listen(80);

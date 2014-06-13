@@ -11,10 +11,9 @@
 #include <pthread.h>    /* POSIX Threads */
 #include <time.h>
 #include <sys/resource.h>
-#include <malloc.h>
 #include <math.h>
 
-int num_reqs = 5000; /* A global variable*/
+int num_reqs = 500; /* A global variable*/
 
 void * request_function ();
 void sleepMs(int milisec);
@@ -39,20 +38,64 @@ void sleepMs(int milisec){
 }
 
 int size;
+char * server;
+char * output;
+
+void * printHelp(){
+ fprintf (stderr, "Help:\n%s\n%s\n%s\n%s\n%s\n",
+    "-i : interval between requests in ms. Default 1000ms",
+    "-H : host name with protocol. Default http://localhost:80/",
+    "-p : payload size in bytes. Default 1000 bytes",
+    "-o : output file to store results. Csv file ",
+    "-n : number of requests. Default to 500" );
+}
 
 int main(int argc, char *argv[])
 {
     printf("Requests: %d. Responses: %d. Used space %d\n", requests, responses, getMemory());
-    pthread_t threads [num_reqs];
     pthread_t dataThread;
 
     pthread_attr_t attr;
+    int sleep = 1000;
+    server = "http://localhost:80/";
+    size = 1000;
+    int c;
+
+   while ((c = getopt (argc, argv, "i:p:H:o:n:h")) != -1)
+       switch (c)
+         {
+         case 'i':
+           sleep = atoi(optarg);
+           break;
+         case 'p':
+           size = atoi(optarg);
+           break;
+         case 'n':
+            num_reqs = atoi(optarg);
+         case 'H':
+           server = optarg;
+           break;
+         case 'o':
+           output = optarg;
+           break;
+         case 'h' :
+           printHelp();
+           return 0;
+           break;
+         case '?':
+           if (optopt == 'i' || optopt == 'p' || optopt == 'H')
+             fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+           else
+             printHelp();
+           return 1;
+         default:
+           abort ();
+    }
+
+    printf("%d, %d, %s\n", sleep, size, server);
 
     int status;
     int i;
-
-    int sleep = atoi(argv[1]);
-    size = atoi(argv[2]);
 
     pthread_mutex_init(&mutexres, NULL);
     pthread_attr_init(&attr);
@@ -63,7 +106,8 @@ int main(int argc, char *argv[])
     for(i = 0; i<num_reqs;i++){
         sleepMs(sleep);
         requests++;
-        pthread_create (&threads[i], &attr, (void *) request_function, NULL);
+        pthread_t thread;
+        pthread_create (&thread, &attr, (void *) request_function, NULL);
     }
 
     testing = 0;
@@ -95,12 +139,12 @@ void * request_function (void * ptr){
       file = fopen(name, "r"); /* open file to upload */
       if(!file) {
         printf("FILE ES NULL\n");
-        return;
+        exit(1);
       }
 
       /* to get the file size */
       if(fstat(fileno(file), &file_info) != 0) {
-        return;
+        exit(1);
       }
 
       printf("Se hace peticion\n");
@@ -108,7 +152,7 @@ void * request_function (void * ptr){
       curl = curl_easy_init();
       if(curl) {
         /* upload to this place */
-        curl_easy_setopt(curl, CURLOPT_URL, "http://ec2-54-199-108-216.ap-northeast-1.compute.amazonaws.com:80/");
+        curl_easy_setopt(curl, CURLOPT_URL, server);
         //curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8000/");
 
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
@@ -179,17 +223,19 @@ int getMemory () {
 
 void * getData (void * ptr){
 
-    FILE * pFile = fopen("runData.csv", "a");
+    FILE * pFile;
     int data [5000];
     int samples = 0;
     int max = 0;
+
+    if (output != NULL) pFile = fopen(output, "w+");
 
     while(testing || responses != requests)
     {
         sleep(2);
         int memory = getMemory();
         printf("Requests: %d. Responses: %d. Used space %d\n", requests, responses, memory);
-        fprintf(pFile, "%d, %d, %d\n", requests, responses, memory);
+        if (output != NULL) fprintf(pFile, "%d, %d, %d\n", requests, responses, memory);
         data[samples] = memory;
         max = (memory > max) ? memory : max;
         samples++;
