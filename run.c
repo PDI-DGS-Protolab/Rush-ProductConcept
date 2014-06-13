@@ -19,15 +19,20 @@ void * request_function ();
 void sleepMs(int milisec);
 int getMemory();
 void * getData ( void *ptr );
-void * doCall ();
-void random_string(char * string, size_t length);
+void collect_data ();
+void termination ();
 
 int testing = 1;
 int requests = 0;
 int responses = 0;
 
-pthread_mutex_t mutexres;
+int data [5000];
+int samples = 0;
+int max = 0;
 
+pthread_mutex_t mutexres;
+pthread_t dataThread;
+pthread_t * threads;
 
 void sleepMs(int milisec){
     struct timespec req = {0};
@@ -40,6 +45,7 @@ void sleepMs(int milisec){
 int size;
 char * server;
 char * output;
+FILE * pFile;
 
 void * printHelp(){
  fprintf (stderr, "Help:\n%s\n%s\n%s\n%s\n%s\n",
@@ -53,7 +59,7 @@ void * printHelp(){
 int main(int argc, char *argv[])
 {
     printf("Requests: %d. Responses: %d. Used space %d\n", requests, responses, getMemory());
-    pthread_t dataThread;
+
 
     pthread_attr_t attr;
     int sleep = 1000;
@@ -61,140 +67,144 @@ int main(int argc, char *argv[])
     size = 1000;
     int c;
 
-   while ((c = getopt (argc, argv, "i:p:H:o:n:h")) != -1)
+    while ((c = getopt (argc, argv, "i:p:H:o:n:h")) != -1)
        switch (c)
-         {
-         case 'i':
-           sleep = atoi(optarg);
-           break;
-         case 'p':
-           size = atoi(optarg);
-           break;
-         case 'n':
-            num_reqs = atoi(optarg);
-         case 'H':
-           server = optarg;
-           break;
-         case 'o':
-           output = optarg;
-           break;
-         case 'h' :
-           printHelp();
-           return 0;
-           break;
-         case '?':
-           if (optopt == 'i' || optopt == 'p' || optopt == 'H')
-             fprintf (stderr, "Option -%c requires an argument.\n", optopt);
-           else
-             printHelp();
-           return 1;
-         default:
-           abort ();
-    }
+   {
+     case 'i':
+     sleep = atoi(optarg);
+     break;
+     case 'p':
+     size = atoi(optarg);
+     break;
+     case 'n':
+     num_reqs = atoi(optarg);
+     case 'H':
+     server = optarg;
+     break;
+     case 'o':
+     output = optarg;
+     break;
+     case 'h' :
+     printHelp();
+     return 0;
+     break;
+     case '?':
+     if (optopt == 'i' || optopt == 'p' || optopt == 'H')
+         fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+     else
+         printHelp();
+     return 1;
+     default:
+     abort ();
+ }
 
-    printf("%d, %d, %s\n", sleep, size, server);
+ printf("%d, %d, %s\n", sleep, size, server);
 
-    int status;
-    int i;
+ int status;
+ int i;
 
-    pthread_mutex_init(&mutexres, NULL);
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ signal(SIGINT, termination);
 
-    pthread_create (&dataThread, NULL, (void *) getData, NULL);
+ pthread_mutex_init(&mutexres, NULL);
+ pthread_attr_init(&attr);
+ pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-    for(i = 0; i<num_reqs;i++){
-        sleepMs(sleep);
-        requests++;
-        pthread_t thread;
-        pthread_create (&thread, &attr, (void *) request_function, NULL);
-    }
+ threads = malloc(sizeof(pthread_t) * num_reqs);
 
-    testing = 0;
+ pthread_create (&dataThread, NULL, (void *) getData, NULL);
 
-    pthread_attr_destroy(&attr);
+ for(i = 0; i<num_reqs;i++){
+    sleepMs(sleep);
+    requests++;
+    pthread_create (&threads[i], &attr, (void *) request_function, NULL);
+ }
 
-    pthread_mutex_destroy(&mutexres);
+testing = 0;
 
-    pthread_join(dataThread, NULL);
+pthread_attr_destroy(&attr);
+
+pthread_mutex_destroy(&mutexres);
+
+pthread_join(dataThread, NULL);
 }
 
 
 void * request_function (void * ptr){
 
-      CURL *curl;
-      CURLcode res;
-      struct stat file_info;
-      double speed_upload, total_time;
+  CURL *curl;
+  CURLcode res;
+  struct stat file_info;
+  double speed_upload, total_time;
 
-      char name [30];
-      FILE * file;
+  char name [30];
+  FILE * file;
 
-      time_t result = time(NULL);
-      sprintf(name, "%d.test", (int) result);
-      file = fopen(name, "w");
-      ftruncate(fileno(file), size *  1024);
-      fclose(file);
+  time_t result = time(NULL);
+  sprintf(name, "%d.test", (int) result);
+  file = fopen(name, "w");
+  ftruncate(fileno(file), size *  1024);
+  fclose(file);
 
       file = fopen(name, "r"); /* open file to upload */
-      if(!file) {
-        printf("FILE ES NULL\n");
-        exit(1);
-      }
+  if(!file) {
+    printf("FILE ES NULL\n");
+    exit(1);
+}
 
       /* to get the file size */
-      if(fstat(fileno(file), &file_info) != 0) {
-        exit(1);
-      }
+if(fstat(fileno(file), &file_info) != 0) {
+    exit(1);
+}
 
-      printf("Se hace peticion\n");
+printf("Se hace peticion\n");
 
-      curl = curl_easy_init();
-      if(curl) {
+curl = curl_easy_init();
+if(curl) {
         /* upload to this place */
-        curl_easy_setopt(curl, CURLOPT_URL, server);
+    curl_easy_setopt(curl, CURLOPT_URL, server);
         //curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8000/");
 
-        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 
         /* tell it to "upload" to the URL */
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+    curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
 
         /* pointer to pass to our read function */
-        curl_easy_setopt(curl, CURLOPT_READDATA, file);
+    curl_easy_setopt(curl, CURLOPT_READDATA, file);
 
-        curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE,
-                     (curl_off_t)file_info.st_size);
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE,
+     (curl_off_t)file_info.st_size);
 
 
         /* enable verbose for easier tracing */
         //curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
-        res = curl_easy_perform(curl);
+    res = curl_easy_perform(curl);
         /* Check for errors */
-        if(res != CURLE_OK) {
-          fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+    if(res != CURLE_OK) {
+      fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 
-        }
-        else {
+  }
+  else {
           /* now extract transfer info */
-          curl_easy_getinfo(curl, CURLINFO_SPEED_UPLOAD, &speed_upload);
-          curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &total_time);
+      curl_easy_getinfo(curl, CURLINFO_SPEED_UPLOAD, &speed_upload);
+      curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &total_time);
 
           //fprintf(stderr, "Speed: %.3f bytes/sec during %.3f seconds\n",speed_upload, total_time);
-        }
+  }
         /* always cleanup */
-        curl_easy_cleanup(curl);
+  curl_easy_cleanup(curl);
 
-        fclose(file);
-        unlink(name);
+  fclose(file);
+  unlink(name);
 
-        pthread_mutex_lock (&mutexres);
-        responses++;
-        pthread_mutex_unlock (&mutexres);
+  pthread_mutex_lock (&mutexres);
+  responses++;
+  pthread_mutex_unlock (&mutexres);
 
-      }
 }
+}
+
 
 int getMemory () {
   int pid = getpid();
@@ -208,39 +218,20 @@ int getMemory () {
   int cont = 0;
   while (fgets (buf, sizeof(buf), fp)) {
     cont ++;
-    if (cont == 16 ) {
+    if (cont == 16) {
       break;
     }
   }
 
-  char* token;
-  char* string;
-  string = strdup(buf);
-  token = strsep(&string, "\t");
-  int res = (int) strtol(string, (char **)NULL, 10);
-  return res;
+    char* token;
+    char* string;
+    string = strdup(buf);
+    token = strsep(&string, "\t");
+    int res = (int) strtol(string, (char **)NULL, 10);
+    return res;
 }
 
-void * getData (void * ptr){
-
-    FILE * pFile;
-    int data [5000];
-    int samples = 0;
-    int max = 0;
-
-    if (output != NULL) pFile = fopen(output, "w+");
-
-    while(testing || responses != requests)
-    {
-        sleep(2);
-        int memory = getMemory();
-        printf("Requests: %d. Responses: %d. Used space %d\n", requests, responses, memory);
-        if (output != NULL) fprintf(pFile, "%d, %d, %d\n", requests, responses, memory);
-        data[samples] = memory;
-        max = (memory > max) ? memory : max;
-        samples++;
-    }
-
+void collect_data () {
     double media, varianza, desviacion;
     int i;
 
@@ -260,6 +251,39 @@ void * getData (void * ptr){
     printf("Desviacion estándar: %.2f\n", desviacion);
     printf("Máximo: %d\n", max);
 
-    fclose(pFile);
+    if(output!=NULL) fclose(pFile);
+}
+
+
+void termination(){
+
+    int i;
+
+    collect_data();
+    pthread_kill(dataThread, SIGKILL);
+
+    exit(0);
+}
+
+
+void * getData (void * ptr){
+
+    if (output != NULL) pFile = fopen(output, "w+");
+
+    while(testing || responses != requests)
+    {
+        sleep(2);
+        int memory = getMemory();
+        printf("Requests: %d. Responses: %d. Used space %d\n", requests, responses, memory);
+        if (output != NULL) fprintf(pFile, "%d, %d, %d\n", requests, responses, memory);
+        data[samples] = memory;
+        max = (memory > max) ? memory : max;
+        samples++;
+    }
+
+    collect_data();
+
     pthread_exit(0); /* exit */
 }
+
+
