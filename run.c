@@ -46,6 +46,7 @@ int size;
 char * server;
 char * output;
 FILE * pFile;
+char * endpoint;
 
 void * printHelp(){
  fprintf (stderr, "Help:\n%s\n%s\n%s\n%s\n%s\n",
@@ -53,7 +54,8 @@ void * printHelp(){
     "-H : host name with protocol. Default http://localhost:80/",
     "-p : payload size in bytes. Default 1000 bytes",
     "-o : output file to store results. Csv file ",
-    "-n : number of requests. Default to 500" );
+    "-n : number of requests. Default to 500",
+    "-r : Rush host address");
 }
 
 int main(int argc, char *argv[])
@@ -67,7 +69,7 @@ int main(int argc, char *argv[])
     size = 1000;
     int c;
 
-    while ((c = getopt (argc, argv, "i:p:H:o:n:h")) != -1)
+    while ((c = getopt (argc, argv, "i:p:H:o:n:h:r")) != -1)
        switch (c)
    {
      case 'i':
@@ -88,6 +90,9 @@ int main(int argc, char *argv[])
      printHelp();
      return 0;
      break;
+     case 'r':
+     endpoint = server;
+     server = optarg;
      case '?':
      if (optopt == 'i' || optopt == 'p' || optopt == 'H')
          fprintf (stderr, "Option -%c requires an argument.\n", optopt);
@@ -160,6 +165,7 @@ printf("Se hace peticion\n");
 
 curl = curl_easy_init();
 if(curl) {
+    struct curl_slist *headers=NULL;
         /* upload to this place */
     curl_easy_setopt(curl, CURLOPT_URL, server);
         //curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8000/");
@@ -174,6 +180,16 @@ if(curl) {
 
     curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE,
      (curl_off_t)file_info.st_size);
+
+    if (endpoint != NULL) {
+      char header[100];
+      strcpy(header, "x-relayer-host: ");
+      strcat(header, endpoint);
+      headers = curl_slist_append(headers, header);
+
+      /* pass our list of custom made headers */
+      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    }
 
 
         /* enable verbose for easier tracing */
@@ -193,6 +209,9 @@ if(curl) {
           //fprintf(stderr, "Speed: %.3f bytes/sec during %.3f seconds\n",speed_upload, total_time);
   }
         /* always cleanup */
+  if (headers != NULL) {
+      curl_slist_free_all(headers); /* free the header list */
+  }
   curl_easy_cleanup(curl);
 
   fclose(file);
