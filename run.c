@@ -46,7 +46,9 @@ void sleepMs(int milisec)
 int size;
 char * server;
 char * output;
+char * outputLatency;
 FILE * pFile;
+FILE * pFileLatency;
 char * endpoint;
 
 void * printHelp()
@@ -105,6 +107,15 @@ int main(int argc, char *argv[])
       default:
          abort ();
       }
+
+   if (output != NULL){
+	   outputLatency = (char *)malloc(strlen(output) + 9);
+	   strcpy (outputLatency,"Latency_");
+	   strcat (outputLatency, output);
+	   pFile = fopen(output, "w+");
+	   pFileLatency = fopen(outputLatency, "w+");
+	   fprintf(pFileLatency,"Speed, Time consumed\n");
+   }
 
    printf("%d, %d, %s\n", sleep, size, server);
 
@@ -181,7 +192,7 @@ void * request_function (void * ptr)
    bufferFile = fmemopen(buffer, file_info.st_size, "r");
 
    /* Make the request */
-   printf("Making request\n");
+   //printf("Making request\n");
    curl = curl_easy_init();
    if (curl)
    {
@@ -221,7 +232,7 @@ void * request_function (void * ptr)
          /* now extract transfer info */
          curl_easy_getinfo(curl, CURLINFO_SPEED_UPLOAD, &speed_upload);
          curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &total_time);
-         //fprintf(stderr, "Speed: %.3f bytes/sec during %.3f seconds\n",speed_upload, total_time);
+         fprintf(pFileLatency, "%.3f, %.3f\n",speed_upload, total_time);
       }
       /* always cleanup */
       if (headers != NULL)
@@ -237,6 +248,7 @@ void * request_function (void * ptr)
       pthread_mutex_lock (&mutexres);
       responses++;
       pthread_mutex_unlock (&mutexres);
+      pthread_exit(0); /* exit */
    }
 }
 
@@ -290,7 +302,10 @@ void collect_data ()
    printf("Desviacion estándar: %.2f\n", desviacion);
    printf("Máximo: %d\n", max);
 
-   if (output != NULL) fclose(pFile);
+   if (output != NULL){ 
+	   fclose(pFile);
+	   fclose(pFileLatency);
+   }
 }
 
 
@@ -309,11 +324,15 @@ void termination()
 void * getData (void * ptr)
 {
 
-   if (output != NULL) pFile = fopen(output, "w+");
+   if (output != NULL){
+	   //pFile = fopen(output, "w+");
+	   //pFileLatency = fopen(strcat("Latency_",output), "w+");
+   }
 
    while (testing || responses != requests)
    {
-      sleep(2);
+      //sleep(2);
+      sleepMs(200);
       int memory = getMemory();
       printf("Requests: %d. Responses: %d. Used space %d\n", requests, responses, memory);
       if (output != NULL) fprintf(pFile, "%d, %d, %d\n", requests, responses, memory);
